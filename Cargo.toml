@@ -64,6 +64,9 @@ name = "async"
 name = "basic"
 
 [[example]]
+name = "debug"
+
+[[example]]
 name = "full"
 
 [[example]]

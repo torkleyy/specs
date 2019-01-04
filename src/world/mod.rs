@@ -1,6 +1,7 @@
 //! Entities, resources, components, and general world management.
 
 pub use self::comp::Component;
+pub use self::debug::{EntityDebug, EntitiesDebug};
 pub use self::entity::{CreateIterAtomic, Entities, EntitiesRes, Entity, EntityResBuilder,
                        Generation, Index};
 pub use self::lazy::{LazyBuilder, LazyUpdate};
@@ -15,6 +16,7 @@ use error::WrongGeneration;
 use storage::{AnyStorage, DenseVecStorage, MaskedStorage, ReadStorage, WriteStorage};
 
 mod comp;
+mod debug;
 mod entity;
 mod lazy;
 #[cfg(test)]
@@ -567,6 +569,21 @@ impl World {
         );
     }
 
+    /// Returns a `Debug` representation of `entity`. Please note that this is only useful if the
+    /// `nightly` feature is enabled.
+    pub fn debug_entity(&self, entity: Entity) -> EntityDebug {
+        EntityDebug(self, entity)
+    }
+
+    /// Returns a `Debug` representation of all entities in this `World`.
+    ///
+    /// Please note that this is only useful if the `nightly` feature is enabled.
+    pub fn debug_all_entities(&self) -> EntitiesDebug {
+        use Join;
+
+        EntitiesDebug(self, (&*self.entities()).join().collect())
+    }
+
     /// Checks if an entity is alive.
     /// Please note that atomically created or deleted entities
     /// (the ones created / deleted with the `Entities` struct)
@@ -586,6 +603,41 @@ impl World {
 
         let alloc: &Allocator = &self.entities().alloc;
         alloc.generation(e.id()) == Some(e.gen())
+    }
+
+    /// Writes the debug representation of all components to `f`; components without a `Debug` impl
+    /// will only be written as `Some` / `None`.
+    #[cfg(feature = "nightly")]
+    fn write_entity_debug(&self, e: Entity, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+        use std::collections::HashMap;
+
+        let mut debug = f.debug_struct("Entity");
+
+        debug.field("entity", &format!("(id = {}, gen = {})", e.id(), e.gen().id()));
+
+        match self.is_alive(e) {
+            false => {
+                debug.field("dead", &true).finish()
+            }
+            true => {
+                let mut map = HashMap::new();
+
+                for storage in self.any_storages().iter(&self.res) {
+                    let key: &'static str = storage.component_debug_name();
+                    let value = storage.debug(e);
+
+                    let value = match value {
+                        None => "None".to_owned(),
+                        Some(None) => "Some".to_owned(),
+                        Some(Some(x)) => format!("Some({:?})", x),
+                    };
+
+                    map.insert(key, value);
+                }
+
+                debug.field("components", &map).finish()
+            }
+        }
     }
 
     /// Merges in the appendix, recording all the dynamically created

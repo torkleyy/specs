@@ -29,6 +29,7 @@ use world::{Component, EntitiesRes, Entity, Generation, Index};
 
 mod data;
 mod drain;
+mod entry;
 mod flagged;
 mod generic;
 mod restrict;
@@ -36,7 +37,7 @@ mod storages;
 #[cfg(test)]
 mod tests;
 mod track;
-mod entry;
+mod util;
 
 /// An inverted storage type, only useful to iterate entities
 /// that do not have a particular component type.
@@ -63,6 +64,23 @@ unsafe impl<'a> ParJoin for AntiStorage<'a> {}
 
 /// A dynamic storage.
 pub trait AnyStorage {
+    /// Retrieves the name of the component for debugging purposes.
+    ///
+    /// Only available with `nightly` enabled.
+    #[cfg(feature = "nightly")]
+    fn component_debug_name(&self) -> &'static str;
+
+    /// Returns a reference to the `Debug` trait object of a particular component.
+    ///
+    /// There are two `Option` layers; the outer one is purely to indicate if there is such a
+    /// component (if `None` gets returned, there is no component for `entity`).
+    ///
+    /// The second layer is only `Some` if the component has a `Debug` implementation.
+    ///
+    /// Only available with `nightly` enabled.
+    #[cfg(feature = "nightly")]
+    fn debug(&self, entity: Entity) -> Option<Option<&::std::fmt::Debug>>;
+
     /// Drop components of given entities.
     fn drop(&mut self, entities: &[Entity]);
 }
@@ -84,6 +102,25 @@ impl<T> AnyStorage for MaskedStorage<T>
 where
     T: Component,
 {
+    #[cfg(feature = "nightly")]
+    fn component_debug_name(&self) -> &'static str {
+        unsafe {
+            ::std::intrinsics::type_name::<T>()
+        }
+    }
+
+    #[cfg(feature = "nightly")]
+    fn debug(&self, entity: Entity) -> Option<Option<&::std::fmt::Debug>> {
+        if self.mask.contains(entity.id()) {
+            let debug_repr = unsafe { self.inner.get(entity.id()) };
+            let debug_repr = self::util::MaybeDebug::maybe_debug(debug_repr);
+
+            Some(debug_repr)
+        } else {
+            None
+        }
+    }
+
     fn drop(&mut self, entities: &[Entity]) {
         for entity in entities {
             MaskedStorage::drop(self, entity.id());
