@@ -1,8 +1,7 @@
 //! Specs errors
 //!
-//! There are specific types for errors (e.g. `WrongGeneration`)
-//! and additionally one `Error` type that can represent them all.
-//! Each error in this module has an `Into<Error>` implementation.
+//! There are specific types for errors (e.g. `WrongGeneration`) and additionally one `Error` type
+//! that can represent them all. Each error in this module has an `Into<Error>` implementation.
 
 use std::error::Error as StdError;
 use std::fmt::{Debug, Display, Formatter, Result as FmtResult};
@@ -47,12 +46,10 @@ impl StdError for BoxedErr {
 }
 
 /// The Specs error type.
-/// This is an enum which is able to represent
-/// all error types of this library.
+/// This is an enum which is able to represent all error types of this library.
 ///
-/// Please note that you should not use `__NonExhaustive`,
-/// which is a variant specifically added for extensibility
-/// without breakage.
+/// Please note that you should not use `__NonExhaustive`, which is a variant specifically added
+/// for extensibility without breakage.
 #[derive(Debug)]
 pub enum Error {
     /// A custom, boxed error.
@@ -133,8 +130,7 @@ impl StdError for WrongGeneration {
     }
 }
 
-/// An error type which cannot be instantiated.
-/// Used as a placeholder for associated error types if
+/// An error type which cannot be instantiated. Used as a placeholder for associated error types if
 /// something cannot fail.
 #[derive(Debug, PartialEq, Eq)]
 pub enum NoError {}
